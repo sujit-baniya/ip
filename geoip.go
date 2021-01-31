@@ -21,6 +21,12 @@ type ipLookup struct {
 	} `maxminddb:"location"`
 }
 
+type Response struct {
+	City     string `json:"city,omitempty"`
+	Country  string `json:"country"`
+	Timezone string `json:"timezone"`
+}
+
 type GeoIpDB struct {
 	*maxminddb.Reader
 }
@@ -36,7 +42,7 @@ func NewGeoIpDB(fileName string) *GeoIpDB {
 	}
 }
 
-func (g *GeoIpDB) GetLocation(ip string) (*ipLookup, error) {
+func (g *GeoIpDB) GetLocation(ip string) (*Response, error) {
 	// Check IP address format
 	ipAddr := net.ParseIP(ip)
 	if ipAddr == nil {
@@ -49,5 +55,12 @@ func (g *GeoIpDB) GetLocation(ip string) (*ipLookup, error) {
 	if err != nil {
 		return nil, err
 	}
-	return record, nil
+	response := &Response{
+		Country:  record.Country.IsoCode,
+		Timezone: record.Location.TimeZone,
+	}
+	if val, ok := record.City.Names["en"]; ok {
+		response.City = val
+	}
+	return response, nil
 }
