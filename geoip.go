@@ -11,14 +11,13 @@ import (
 // what data is returned for a specific IP.
 type ipLookup struct {
 	City struct {
-		GeoNameID uint              `maxminddb:"geoname_id"`
-		Names     map[string]string `maxminddb:"names"`
+		Names map[string]string `maxminddb:"names"`
 	} `maxminddb:"city"`
 	Country struct {
 		IsoCode string `maxminddb:"iso_code"`
 	} `maxminddb:"country"`
 	Location struct {
-		AccuracyRadius uint16 `maxminddb:"accuracy_radius"`
+		TimeZone string `maxminddb:"time_zone"`
 	} `maxminddb:"location"`
 }
 
