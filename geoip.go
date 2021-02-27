@@ -3,8 +3,10 @@ package ip
 import (
 	"errors"
 	"fmt"
+	"github.com/gofiber/fiber/v2"
 	"github.com/oschwald/maxminddb-golang"
 	"net"
+	"regexp"
 )
 
 // See https://pkg.go.dev/github.com/oschwald/geoip2-golang#City for a full list of options you can use here to modify
@@ -23,6 +25,7 @@ type ipLookup struct {
 
 type Response struct {
 	City     string `json:"city,omitempty"`
+	IP       string `json:"ip"`
 	Country  string `json:"country"`
 	Timezone string `json:"timezone"`
 }
@@ -63,4 +66,53 @@ func (g *GeoIpDB) GetLocation(ip string) (*Response, error) {
 		response.City = val
 	}
 	return response, nil
+}
+
+var fetchIpFromString = regexp.MustCompile(`(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})`)
+var possibleHeaderes = []string{
+	"X-Original-Forwarded-For",
+	"X-Forwarded-For",
+	"X-Real-Ip",
+	"X-Client-Ip",
+	"Forwarded-For",
+	"Forwarded",
+	"Remote-Addr",
+	"Client-Ip",
+	"CF-Connecting-IP",
+}
+
+// determine user ip
+func IP(c *fiber.Ctx) string {
+	var headerValue []byte
+	if c.App().Config().ProxyHeader == "*" {
+		for _, headerName := range possibleHeaderes {
+			headerValue = c.Request().Header.Peek(headerName)
+			if len(headerValue) > 3 {
+				return string(fetchIpFromString.Find(headerValue))
+			}
+		}
+	}
+	headerValue = []byte(c.IP())
+	if len(headerValue) <= 3 {
+		headerValue = []byte("0.0.0.0")
+	}
+
+	// find ip address in string
+	return string(fetchIpFromString.Find(headerValue))
+}
+
+func Detect(c *fiber.Ctx) error {
+	ip := IP(c)
+	c.Locals("ip", ip)
+	return c.Next()
+}
+
+func DetectLocation(db *GeoIpDB) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		ip := IP(c)
+		response, _ := db.GetLocation(ip)
+		c.Locals("ip", ip)
+		c.Locals("location", response)
+		return c.Next()
+	}
 }
