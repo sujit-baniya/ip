@@ -16,7 +16,8 @@ type ipLookup struct {
 		Names map[string]string `maxminddb:"names"`
 	} `maxminddb:"city"`
 	Country struct {
-		IsoCode string `maxminddb:"iso_code"`
+		IsoCode string            `maxminddb:"iso_code"`
+		Names   map[string]string `maxminddb:"names"`
 	} `maxminddb:"country"`
 	Location struct {
 		TimeZone string `maxminddb:"time_zone"`
@@ -27,6 +28,7 @@ type Response struct {
 	City     string `json:"city,omitempty"`
 	IP       string `json:"ip"`
 	Country  string `json:"country"`
+	IsoCode  string `json:"iso_code"`
 	Timezone string `json:"timezone"`
 }
 
@@ -58,9 +60,14 @@ func (g *GeoIpDB) GetLocation(ip string) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	response := &Response{
-		Country:  record.Country.IsoCode,
+		IP:       ip,
+		IsoCode:  record.Country.IsoCode,
 		Timezone: record.Location.TimeZone,
+	}
+	if val, ok := record.Country.Names["en"]; ok {
+		response.Country = val
 	}
 	if val, ok := record.City.Names["en"]; ok {
 		response.City = val
