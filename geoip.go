@@ -36,6 +36,12 @@ type GeoIpDB struct {
 	*maxminddb.Reader
 }
 
+var DefaultDB *GeoIpDB
+
+func Default(fileName string) {
+	DefaultDB = NewGeoIpDB(fileName)
+}
+
 func NewGeoIpDB(fileName string) *GeoIpDB {
 	db, err := maxminddb.Open(fileName)
 	if err != nil {
@@ -88,7 +94,7 @@ var possibleHeaderes = []string{
 	"CF-Connecting-IP",
 }
 
-// determine user ip
+// IP determine user ip
 func IP(c *fiber.Ctx) string {
 	var headerValue []byte
 	if c.App().Config().ProxyHeader == "*" {
@@ -114,12 +120,14 @@ func Detect(c *fiber.Ctx) error {
 	return c.Next()
 }
 
-func DetectLocation(db *GeoIpDB) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		ip := IP(c)
-		response, _ := db.GetLocation(ip)
-		c.Locals("ip", ip)
-		c.Locals("location", response)
-		return c.Next()
-	}
+func Location(c *fiber.Ctx) error {
+	ip := IP(c)
+	response, _ := DefaultDB.GetLocation(ip)
+	c.Locals("ip", ip)
+	c.Locals("location", response)
+	return c.Next()
+}
+
+func GetLocation(ip string) (*Response, error) {
+	return DefaultDB.GetLocation(ip)
 }
